@@ -15,7 +15,6 @@
 
 
 import os
-import torch
 import datasets
 import torch
 from safe.tokenizer import SAFETokenizer
@@ -25,6 +24,7 @@ RDLogger.DisableLog('rdApp.*')
 
 
 ROOT_DIR = os.getcwd()
+TEXT_COLUMNS = ('input', 'safe', 'text', 'inputs', 'sequence')
 
 
 def get_last_checkpoint(save_dir):
@@ -41,6 +41,22 @@ def get_tokenizer():
     return tk
 
 
+def get_example_text(example):
+    for key in TEXT_COLUMNS:
+        value = example.get(key)
+        if isinstance(value, str):
+            return value
+
+    for key, value in example.items():
+        if isinstance(value, str):
+            return value
+
+    raise KeyError(
+        f'Could not find a string SAFE column in example. '
+        f'Available keys: {list(example.keys())}'
+    )
+
+
 class Collator:
     def __init__(self, config):
         self.tokenizer = get_tokenizer()
@@ -48,10 +64,11 @@ class Collator:
         self.use_bracket_safe = config.training.get('use_bracket_safe')
     
     def __call__(self, examples):
+        texts = [get_example_text(example) for example in examples]
         if self.use_bracket_safe:
-            for example in examples: example['input'] = safe2bracketsafe(example['input'])
+            texts = [safe2bracketsafe(text) for text in texts]
 
-        batch = self.tokenizer([example['input'] for example in examples],
+        batch = self.tokenizer(texts,
                                return_tensors='pt',
                                padding=True,
                                truncation=True,
@@ -69,8 +86,8 @@ class UserDataset(datasets.Dataset):
     def __len__(self):
         return len(self.safe_list)
 
-    def __getitem__(self, indices):
-        return {'input': self.safe_list[i] for i in indices}
+    def __getitem__(self, index):
+        return {'input': self.safe_list[index]}
     
 
 def get_dataloader(config):

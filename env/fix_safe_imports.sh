@@ -5,13 +5,27 @@ if [ -z "$CONDA_PREFIX" ]; then
     exit 1
 fi
 
-# Comment out all lines in the safe package __init__.py
-sed -i 's/^/# /' "$CONDA_PREFIX/lib/python3.10/site-packages/safe/__init__.py"
+SAFE_INIT=$(python - <<'PY'
+import os
+import sysconfig
+print(os.path.join(sysconfig.get_paths()["purelib"], "safe", "__init__.py"))
+PY
+)
 
-# Import required packages
-echo "from .converter import SAFEConverter, decode, encode" >> "$CONDA_PREFIX/lib/python3.10/site-packages/safe/__init__.py"
+if [ ! -f "$SAFE_INIT" ]; then
+    echo "Error: Could not find safe package __init__.py at $SAFE_INIT"
+    exit 1
+fi
+
+cp "$SAFE_INIT" "${SAFE_INIT}.bak"
+cat > "$SAFE_INIT" <<'EOF'
+from ._exception import SAFEDecodeError, SAFEEncodeError, SAFEFragmentationError
+from .converter import SAFEConverter, decode, encode
+from .tokenizer import SAFETokenizer, split
+EOF
 
 echo "Fixed safe package in environment: $CONDA_PREFIX"
+echo "Patched file: $SAFE_INIT"
 
 # This is to fix the following error with SAFE due to the new version of transformers
 
