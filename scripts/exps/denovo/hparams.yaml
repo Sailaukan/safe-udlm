@@ -1,4 +1,4 @@
-model_path: model.ckpt
+model_path: /home/shakhnazar.sailaukan/projects/safe-udlm/ckpt/train/checkpoints/50000.ckpt
 num_samples: 1000
 softmax_temp: 0.5
 randomness: 0.5

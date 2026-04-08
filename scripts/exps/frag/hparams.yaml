@@ -1,4 +1,4 @@
-model_path: model.ckpt
+model_path: /home/shakhnazar.sailaukan/projects/safe-udlm/ckpt/train/checkpoints/50000.ckpt
 num_samples: 100
 linker_design_onestep:
   softmax_temp: 1.2

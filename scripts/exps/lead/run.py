@@ -138,7 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--start_mol_idx',    type=int,   default=0, choices=[0, 1, 2])
     parser.add_argument('-d', '--sim_thr',          type=float, default=0.4)
     parser.add_argument('-s', '--seed',             type=int,   default=0)
-    parser.add_argument('-m', '--model_path',       type=str,   default='model.ckpt')
+    parser.add_argument('-m', '--model_path',       type=str,   default='/home/shakhnazar.sailaukan/projects/safe-udlm/ckpt/train/checkpoints/50000.ckpt')
     parser.add_argument('--num_gen',                type=int,   default=100)
     parser.add_argument('--num_iter',               type=int,   default=10)
     parser.add_argument('--gamma',                  type=float, default=0)

@@ -1,4 +1,4 @@
-model_path: model.ckpt
+model_path: /home/shakhnazar.sailaukan/projects/safe-udlm/ckpt/train/checkpoints/50000.ckpt
 population_size: 100
 min_mol_size: 20
 max_mol_size: 40
