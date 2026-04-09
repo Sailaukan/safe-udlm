@@ -73,11 +73,18 @@ python scripts/exps/lead/run.py -o ${ORACLE_NAME} -i ${START_MOL_IDX} -d ${SIM_T
 
 Evaluation helpers are included alongside the PMO and lead optimization scripts.
 
+## Choosing A Workflow
+
+- `scripts/exps/denovo/`: sample novel molecules without structural constraints
+- `scripts/exps/frag/`: complete or bridge user-provided fragments
+- `scripts/exps/pmo/`: run oracle-guided generation for hit discovery
+- `scripts/exps/lead/`: optimize a starting molecule under similarity control
+
 ## Project Notes
 
 - Historical references to GenMol remain in some filenames, package names, and legacy documentation.
 - The current repository direction is SAFE-UDLM, not the original GenMol masked-diffusion setup.
-- Older GenMol checkpoints are not necessarily compatible with the current UDLM-based model path.
+- Training, sampling, and evaluation are still organized around the original experiment structure, so most entrypoints remain script-driven rather than packaged as a separate CLI.
 
 ## License
 
