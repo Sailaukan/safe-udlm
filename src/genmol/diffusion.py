@@ -85,17 +85,8 @@ class UniformDiscreteDiffusion(nn.Module):
         self.sampling_steps = sampling_steps
         self.sampling_eps = sampling_eps
         self.final_denoise = final_denoise
-        self.register_buffer(
-            "limiting_distribution",
-            torch.ones((1, 1, vocab_size), dtype=torch.float32) / vocab_size,
-        )
 
-    def to_device(self, device: torch.device | str) -> None:
-        self.to(device)
-
-    def sample_time(self, batch_size: int, device: torch.device | str | None = None) -> torch.Tensor:
-        if device is None:
-            device = self.limiting_distribution.device
+    def sample_time(self, batch_size: int, device: torch.device | str) -> torch.Tensor:
         return self.time_distribution.sample(batch_size, device=device)
 
     def time_conditioning(self, t: torch.Tensor) -> torch.Tensor:
@@ -126,8 +117,10 @@ class UniformDiscreteDiffusion(nn.Module):
         x0: torch.Tensor,
         t: torch.Tensor,
         frozen_mask: torch.Tensor | None = None,
+        sigma: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        sigma = self.time_conditioning(t)
+        if sigma is None:
+            sigma = self.time_conditioning(t)
         move_chance = (1 - torch.exp(-sigma))[:, None]
         xt = self._q_xt(x0, move_chance)
         if frozen_mask is not None:
@@ -149,7 +142,7 @@ class UniformDiscreteDiffusion(nn.Module):
             alpha_t * self.vocab_size * x * xt_one_hot
             + (alpha_ts - alpha_t) * xt_one_hot
             + d_alpha * x
-            + (1 - alpha_ts) * (1 - alpha_s) * self.limiting_distribution.to(x.dtype)
+            + (1 - alpha_ts) * (1 - alpha_s) / self.vocab_size
         )
         denominator = alpha_t * self.vocab_size * torch.gather(x, -1, xt[..., None]) + (1 - alpha_t)
         posterior = numerator / denominator.clamp_min(1e-12)

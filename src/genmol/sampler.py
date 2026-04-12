@@ -20,7 +20,6 @@ os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 import warnings
 warnings.filterwarnings('ignore')
 
-import itertools
 import pickle
 import torch
 import random
@@ -41,8 +40,8 @@ def load_model_from_path(path):
     model.eval()
     model.backbone.eval()
     if model.ema:
-        model.ema.store(itertools.chain(model.backbone.parameters()))
-        model.ema.copy_to(itertools.chain(model.backbone.parameters()))
+        model.ema.store(model.backbone.parameters())
+        model.ema.copy_to(model.backbone.parameters())
     return model
 
 
@@ -53,9 +52,7 @@ class Sampler:
         self.dot_index = self.model.tokenizer('.')['input_ids'][1]
         self.pad_index = self.model.tokenizer.pad_token_id
         self.diffusion = self.model.diffusion
-        self.mdlm = self.diffusion
-        self.diffusion.to_device(self.model.device)
-        
+
     @torch.no_grad()
     def generate(self, x, softmax_temp=1.2, randomness=2, fix=True, gamma=0, w=2, **kwargs):
         template = x.to(self.model.device)

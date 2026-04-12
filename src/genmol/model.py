@@ -14,13 +14,18 @@
 # limitations under the License.
 
 
-import itertools
 import hydra.utils
 import lightning as L
 import torch
 from transformers.models.bert.configuration_bert import BertConfig
 from genmol.backbone import TimeConditionedBertForMaskedLM
 from genmol.diffusion import LogLinearNoiseSchedule, UniformDiscreteDiffusion
+from genmol.mup import (
+    MupConfig,
+    apply_mup_init,
+    mup_param_groups,
+    output_multiplier,
+)
 from genmol.utils.utils_moco import AntitheticUniformTimeDistribution, UniformTimeDistribution
 
 from genmol.utils.ema import ExponentialMovingAverage
@@ -38,8 +43,22 @@ class SafeUDLM(L.LightningModule):
         self.bos_index = self.tokenizer.bos_token_id
         self.eos_index = self.tokenizer.eos_token_id
         self.pad_index = self.tokenizer.pad_token_id
-        # set up time-conditioned backbone
-        self.backbone = TimeConditionedBertForMaskedLM(BertConfig.from_dict(dict(self.config.model)))
+        # Build muP config. When disabled, all muP code paths are no-ops
+        # and behavior is identical to the pre-muP training loop.
+        self.mup = self._build_mup_config()
+        # set up time-conditioned backbone. muP requires untied word
+        # embeddings so the input and output projections can have
+        # independent init stds and learning rates.
+        bert_cfg = BertConfig.from_dict(dict(self.config.model))
+        if self.mup.enabled:
+            bert_cfg.tie_word_embeddings = False
+        self.backbone = TimeConditionedBertForMaskedLM(bert_cfg)
+        # Apply muP init on top of HF's default init, then set the forward
+        # output multiplier. Both are no-ops when muP is disabled.
+        apply_mup_init(self.backbone, self.mup, hidden_size=self.config.model.hidden_size)
+        self.backbone.mup_output_multiplier = output_multiplier(
+            self.mup, hidden_size=self.config.model.hidden_size
+        )
         # set up local UDLM engine
         if self.config.training.antithetic_sampling:
             time_distribution = AntitheticUniformTimeDistribution(
@@ -66,13 +85,19 @@ class SafeUDLM(L.LightningModule):
             sampling_eps=sampling_config.get('eps', self.config.training.sampling_eps),
             final_denoise=sampling_config.get('final_denoise', True),
         )
-        # Keep the historical attribute name so existing task code keeps working.
-        self.mdlm = self.diffusion
         # set up ema
         if self.config.training.ema > 0:
             self.ema = ExponentialMovingAverage(self.backbone.parameters(), decay=self.config.training.ema)
         else:
             self.ema = None
+
+    def _build_mup_config(self) -> MupConfig:
+        raw = self.config.get('mup', {}) or {}
+        return MupConfig(
+            enabled=bool(raw.get('enabled', False)),
+            base_hidden_size=int(raw.get('base_hidden_size', 128)),
+            init_std=float(raw.get('init_std', self.config.model.initializer_range)),
+        )
 
     def on_load_checkpoint(self, checkpoint):
         if self.ema:
@@ -92,8 +117,17 @@ class SafeUDLM(L.LightningModule):
             checkpoint['sampler']['random_state'] = None
 
     def configure_optimizers(self):
+        # muP rescales per-group LRs based on width; when disabled this
+        # returns a single group equivalent to the standard optimizer.
+        param_groups = mup_param_groups(
+            self.backbone,
+            self.mup,
+            hidden_size=self.config.model.hidden_size,
+            base_lr=self.config.optim.lr,
+            weight_decay=self.config.optim.weight_decay,
+        )
         optimizer = torch.optim.AdamW(
-            self.backbone.parameters(),
+            param_groups,
             lr=self.config.optim.lr,
             betas=(self.config.optim.beta1, self.config.optim.beta2),
             eps=self.config.optim.eps,
@@ -117,14 +151,14 @@ class SafeUDLM(L.LightningModule):
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
         if self.ema:
-            self.ema.update(itertools.chain(self.backbone.parameters()))
+            self.ema.update(self.backbone.parameters())
         
     def forward(self, x, attention_mask=None, timesteps=None):
-        autocast_enabled = self.device.type == 'cuda'
-        device_type = 'cuda' if autocast_enabled else 'cpu'
-        with torch.amp.autocast(device_type, dtype=torch.float32, enabled=autocast_enabled):
-            return self.backbone(x, attention_mask=attention_mask, timesteps=timesteps).logits
-    
+        # Backbone runs under the trainer's mixed-precision autocast (bf16).
+        # Cast logits up to fp32: downstream log/posterior math is sensitive.
+        logits = self.backbone(x, attention_mask=attention_mask, timesteps=timesteps).logits
+        return logits.float()
+
     def training_step(self, batch, batch_idx):
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
@@ -133,12 +167,10 @@ class SafeUDLM(L.LightningModule):
         t = self.diffusion.sample_time(input_ids.shape[0], device=input_ids.device)
         sigma = self.diffusion.time_conditioning(t)
         # forward process to add uniform discrete noise
-        xt = self.diffusion.forward_process(input_ids, t, frozen_mask=frozen_mask)
-        # forward model pass
-        autocast_enabled = self.device.type == 'cuda'
-        device_type = 'cuda' if autocast_enabled else 'cpu'
-        with torch.amp.autocast(device_type, dtype=torch.float32, enabled=autocast_enabled):
-            logits = self.backbone(xt, attention_mask=attention_mask, timesteps=sigma).logits
+        xt = self.diffusion.forward_process(input_ids, t, frozen_mask=frozen_mask, sigma=sigma)
+        # forward model pass (bf16 via trainer autocast); cast logits to fp32 for the UDLM loss
+        logits = self.backbone(xt, attention_mask=attention_mask, timesteps=sigma).logits
+        logits = logits.float()
         # compute loss
         loss_terms = self.diffusion.loss_terms(
             logits=logits,
@@ -176,7 +208,3 @@ class SafeUDLM(L.LightningModule):
                  prog_bar=False,
                  sync_dist=True)
         return loss
-
-
-# Backward-compatible alias for older imports/checkpoints.
-GenMol = SafeUDLM

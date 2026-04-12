@@ -63,7 +63,9 @@ class TimeConditionedBertForMaskedLM(BertPreTrainedModel):
         self.bert = BertModel(config, add_pooling_layer=False)
         self.cls = BertOnlyMLMHead(config)
         self.time_conditioning = getattr(config, "time_conditioning", True)
-        self.time_conditioning_mode = getattr(config, "time_conditioning_mode", "add")
+        # muP output-logit multiplier. Set to 1/m by SafeUDLM when muP is
+        # enabled; stays at 1.0 otherwise, making this a no-op cost.
+        self.mup_output_multiplier: float = 1.0
 
         if self.time_conditioning:
             time_embedding_size = getattr(config, "time_embedding_size", 256)
@@ -71,8 +73,7 @@ class TimeConditionedBertForMaskedLM(BertPreTrainedModel):
                 hidden_size=config.hidden_size,
                 frequency_embedding_size=time_embedding_size,
             )
-            out_dim = config.hidden_size * 2 if self.time_conditioning_mode == "scale_shift" else config.hidden_size
-            self.time_projection = nn.Linear(config.hidden_size, out_dim)
+            self.time_projection = nn.Linear(config.hidden_size, config.hidden_size)
         else:
             self.sigma_map = None
             self.time_projection = None
@@ -87,10 +88,6 @@ class TimeConditionedBertForMaskedLM(BertPreTrainedModel):
             timesteps = torch.zeros(hidden_states.shape[0], device=hidden_states.device, dtype=hidden_states.dtype)
         timestep_embedding = self.sigma_map(timesteps).to(hidden_states.dtype)
         modulation = self.time_projection(timestep_embedding)
-
-        if self.time_conditioning_mode == "scale_shift":
-            shift, scale = modulation.chunk(2, dim=-1)
-            return hidden_states * (1 + scale[:, None]) + shift[:, None]
         return hidden_states + modulation[:, None]
 
     def forward(
@@ -128,6 +125,8 @@ class TimeConditionedBertForMaskedLM(BertPreTrainedModel):
         )
         sequence_output = encoder_outputs.last_hidden_state
         prediction_scores = self.cls(sequence_output)
+        if self.mup_output_multiplier != 1.0:
+            prediction_scores = prediction_scores * self.mup_output_multiplier
 
         return MaskedLMOutput(
             logits=prediction_scores,

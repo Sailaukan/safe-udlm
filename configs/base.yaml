@@ -50,21 +50,15 @@ model:
   pad_token_id: 3
   position_embedding_type: 'absolute'
   time_conditioning: True
-  time_conditioning_mode: 'add'
   time_embedding_size: 256
   torch_dtype: 'float32'
   type_vocab_size: 2
-  use_cache: True
   vocab_size: 1880
 
 noise:
-  type: loglinear
   eps: ${training.sampling_eps}
 
 diffusion:
-  engine: udlm
-  type: uniform
-  parameterization: d3pm
   freeze_special_tokens: True
   zero_recon_loss: True
 
@@ -73,8 +67,19 @@ sampling:
   eps: ${training.sampling_eps}
   final_denoise: True
 
+# Maximal Update Parameterization (muP). See src/genmol/mup.py.
+# Workflow:
+#   1. Enable muP and set base_hidden_size to the small model's width.
+#   2. Sweep optim.lr while training with model.hidden_size = base_hidden_size
+#      (and intermediate_size kept at its usual ratio, e.g. 4x).
+#   3. Scale up model.hidden_size / model.intermediate_size without changing
+#      optim.lr; muP rescales init, LR, and output logits automatically.
+# Disabled by default -- leaves the standard training dynamics unchanged.
+mup:
+  enabled: False
+  base_hidden_size: 128
+
 training:
-  T: 0  # 0 (continuous time) / 1000
   ema: 0.9999
   antithetic_sampling: True
   sampling_eps: 1e-3
