@@ -88,6 +88,7 @@ training:
   # Examples with more tokens (longer sequences) implicitly contribute more to the loss
   # It's weighted by sequence length
   use_bracket_safe: False
+  warmup_steps: 4000
 
 callback:
   _target_: lightning.pytorch.callbacks.ModelCheckpoint

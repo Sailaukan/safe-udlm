@@ -135,7 +135,7 @@ class SafeUDLM(L.LightningModule):
 
         scheduler = hydra.utils.instantiate(
             {'_target_': 'transformers.get_constant_schedule_with_warmup',
-             'num_warmup_steps': 2500},
+             'num_warmup_steps': self.config.training.get('warmup_steps', 2500)},
              optimizer=optimizer)
         scheduler_dict = {
             'scheduler': scheduler,
