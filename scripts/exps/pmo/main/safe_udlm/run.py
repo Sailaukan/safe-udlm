@@ -23,8 +23,8 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from easydict import EasyDict
 from scripts.exps.pmo.main.optimizer import BaseOptimizer
-from genmol.sampler import Sampler
-from genmol.utils.utils_chem import cut
+from safe_udlm.sampler import Sampler
+from safe_udlm.utils.utils_chem import cut
 
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))

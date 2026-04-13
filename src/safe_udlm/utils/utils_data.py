@@ -19,7 +19,7 @@ import datasets
 import torch
 from safe.tokenizer import SAFETokenizer
 from rdkit import RDLogger
-from genmol.utils.bracket_safe_converter import safe2bracketsafe
+from safe_udlm.utils.bracket_safe_converter import safe2bracketsafe
 RDLogger.DisableLog('rdApp.*')
 
 

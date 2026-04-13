@@ -25,9 +25,9 @@ import torch
 import random
 import safe as sf
 from rdkit import Chem
-from genmol.utils.utils_chem import safe_to_smiles, filter_by_substructure, mix_sequences, Slicer
-from genmol.utils.bracket_safe_converter import BracketSAFEConverter, bracketsafe2safe
-from genmol.model import SafeUDLM
+from safe_udlm.utils.utils_chem import safe_to_smiles, filter_by_substructure, mix_sequences, Slicer
+from safe_udlm.utils.bracket_safe_converter import BracketSAFEConverter, bracketsafe2safe
+from safe_udlm.model import SafeUDLM
 
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))

@@ -1,4 +1,4 @@
-name: genmol
+name: safe_udlm
 channels:
   - pytorch
   - anaconda

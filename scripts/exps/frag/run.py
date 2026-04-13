@@ -25,7 +25,7 @@ import numpy as np
 from tdc import Oracle, Evaluator
 from rdkit import DataStructs, Chem, RDLogger
 from rdkit.Chem import AllChem
-from genmol.sampler import Sampler
+from safe_udlm.sampler import Sampler
 RDLogger.DisableLog('rdApp.*')
 
 

@@ -18,19 +18,19 @@ import hydra.utils
 import lightning as L
 import torch
 from transformers.models.bert.configuration_bert import BertConfig
-from genmol.backbone import TimeConditionedBertForMaskedLM
-from genmol.diffusion import LogLinearNoiseSchedule, UniformDiscreteDiffusion
-from genmol.mup import (
+from safe_udlm.backbone import TimeConditionedBertForMaskedLM
+from safe_udlm.diffusion import LogLinearNoiseSchedule, UniformDiscreteDiffusion
+from safe_udlm.mup import (
     MupConfig,
     apply_mup_init,
     mup_param_groups,
     output_multiplier,
 )
-from genmol.utils.utils_moco import AntitheticUniformTimeDistribution, UniformTimeDistribution
+from safe_udlm.utils.utils_moco import AntitheticUniformTimeDistribution, UniformTimeDistribution
 
-from genmol.utils.ema import ExponentialMovingAverage
-from genmol.utils.utils_data import get_tokenizer
-from genmol.utils.utils_save import clean_checkpoint, fast_forward_info
+from safe_udlm.utils.ema import ExponentialMovingAverage
+from safe_udlm.utils.utils_data import get_tokenizer
+from safe_udlm.utils.utils_save import clean_checkpoint, fast_forward_info
 
 class SafeUDLM(L.LightningModule):
     def __init__(self, config):
@@ -100,7 +100,7 @@ class SafeUDLM(L.LightningModule):
         )
 
     def on_load_checkpoint(self, checkpoint):
-        if self.ema:
+        if self.ema and 'ema' in checkpoint:
             self.ema.load_state_dict(checkpoint['ema'])
         self.fast_forward_epochs, self.fast_forward_batches = fast_forward_info(checkpoint)
         

@@ -23,7 +23,7 @@ import yaml
 from time import time
 import pandas as pd
 from tdc import Oracle, Evaluator
-from genmol.sampler import Sampler
+from safe_udlm.sampler import Sampler
 
 
 if __name__ == '__main__':

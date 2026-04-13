@@ -2,11 +2,11 @@
 
 ## Goal
 
-This repository now uses a local **uniform discrete diffusion language model (UDLM)** engine as the generative core for GenMol, so the model can be trained as a SAFE-native UDLM without changing the outer experiment workflow.
+This repository uses a local **uniform discrete diffusion language model (UDLM)** engine as the generative core for SAFE-UDLM, so the model can be trained as a SAFE-native UDLM without changing the outer experiment workflow.
 
 The design target was:
 
-- keep the existing `GenMol` and `Sampler` entrypoints,
+- keep the existing `SafeUDLM` and `Sampler` entrypoints,
 - keep the existing task scripts and folder structure,
 - replace BioNeMo's masked discrete diffusion assumptions with UDLM's uniform-noise forward and reverse process,
 - preserve fragment-conditioned and goal-directed workflows that already depend on mask-marked editable spans.
@@ -17,9 +17,9 @@ The design target was:
 
 Files:
 
-- `src/genmol/diffusion.py`
-- `src/genmol/utils/utils_moco.py`
-- `src/genmol/model.py`
+- `src/safe_udlm/diffusion.py`
+- `src/safe_udlm/utils/utils_moco.py`
+- `src/safe_udlm/model.py`
 
 The new engine implements the UDLM mechanics adapted from the `kuleshov-group/discrete-diffusion-guidance` codebase:
 
@@ -29,27 +29,27 @@ The new engine implements the UDLM mechanics adapted from the `kuleshov-group/di
 - explicit diffusion loss for the uniform discrete process,
 - optional zero reconstruction loss behavior, which is the default for UDLM.
 
-`GenMol` still exposes `self.mdlm` for compatibility, but that attribute now points to the local UDLM engine instead of BioNeMo's MDLM class.
+`SafeUDLM` still exposes `self.mdlm` for compatibility, but that attribute now points to the local UDLM engine instead of BioNeMo's MDLM class.
 
 ### 2. The BERT backbone is now time-conditioned
 
 File:
 
-- `src/genmol/backbone.py`
+- `src/safe_udlm/backbone.py`
 
-Masked diffusion in the original GenMol did not require explicit timestep conditioning. UDLM does. To keep the same BERT-centered model family, the repository now uses a `TimeConditionedBertForMaskedLM` wrapper:
+The original masked diffusion approach did not require explicit timestep conditioning. UDLM does. To keep the same BERT-centered model family, the repository now uses a `TimeConditionedBertForMaskedLM` wrapper:
 
 - sinusoidal timestep embedding,
 - MLP projection into hidden size,
 - additive or scale-shift conditioning on top of BERT embeddings.
 
-This keeps the model structurally close to GenMol while making it valid for UDLM training and sampling.
+This keeps the model structurally similar to the original while making it valid for UDLM training and sampling.
 
 ### 3. Sampling now follows UDLM behavior
 
 File:
 
-- `src/genmol/sampler.py`
+- `src/safe_udlm/sampler.py`
 
 The old sampler started from `[MASK]` placeholders and progressively locked tokens in place. The new sampler keeps the same user-facing APIs, but internally:
 
@@ -58,7 +58,7 @@ The old sampler started from `[MASK]` placeholders and progressively locked toke
 - context tokens remain frozen for conditional generation,
 - the final step optionally performs a clean `t -> 0` denoise pass.
 
-This is the main behavioral change that turns GenMol into SAFE-UDLM rather than SAFE-MDLM.
+This is the main behavioral change that defines SAFE-UDLM rather than SAFE-MDLM.
 
 ### 4. Molecular context guidance was made UDLM-compatible
 
@@ -78,7 +78,7 @@ Files:
 
 ### Checkpoints
 
-Old GenMol MDLM checkpoints are **not architecture-compatible** with the new SAFE-UDLM code path. SAFE-UDLM should be trained from scratch on the same SAFE dataset GenMol used.
+Old MDLM checkpoints are **not architecture-compatible** with the SAFE-UDLM code path. SAFE-UDLM should be trained from scratch on the same SAFE dataset.
 
 ### Special tokens
 
@@ -94,7 +94,7 @@ The experiment scripts remain mostly unchanged because editable regions are stil
 - `remask` now guards against invalid negative/zero replacement span lengths.
 - runtime dependence on `jaxtyping` for time-sampler annotations was removed.
 
-## Why This Is The Right GenMol-to-UDLM Cut
+## Why This Is The Right Migration to UDLM
 
 This migration changes the **diffusion engine**, not the surrounding research interface:
 
@@ -104,7 +104,7 @@ This migration changes the **diffusion engine**, not the surrounding research in
 - fragment-constrained generation flow: unchanged at the API level,
 - lead optimization and PMO pipelines: unchanged at the script level.
 
-That means the repo is still "GenMol-shaped", but the generative dynamics are now UDLM-shaped.
+That means the repo preserves the original research interface, but the generative dynamics are now UDLM-shaped.
 
 ## Source Basis
 
@@ -114,7 +114,7 @@ The UDLM loss/sampling/noise design in this migration follows the paper and refe
 
 ## Recommended Next Step
 
-Retrain SAFE-UDLM from scratch on the original GenMol SAFE dataset, then re-run:
+Retrain SAFE-UDLM from scratch on the original SAFE dataset, then re-run:
 
 - `scripts/exps/denovo/run.py`
 - `scripts/exps/frag/run.py`

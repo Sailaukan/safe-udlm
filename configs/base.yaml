@@ -67,7 +67,7 @@ sampling:
   eps: ${training.sampling_eps}
   final_denoise: True
 
-# Maximal Update Parameterization (muP). See src/genmol/mup.py.
+# Maximal Update Parameterization (muP). See src/safe_udlm/mup.py.
 # Workflow:
 #   1. Enable muP and set base_hidden_size to the small model's width.
 #   2. Sweep optim.lr while training with model.hidden_size = base_hidden_size

@@ -26,8 +26,8 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import DataStructs, AllChem, QED, RDConfig
 from scripts.exps.lead.docking.docking import DockingVina
-from genmol.sampler import Sampler
-from genmol.utils.utils_chem import cut
+from safe_udlm.sampler import Sampler
+from safe_udlm.utils.utils_chem import cut
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
 import sascorer
 

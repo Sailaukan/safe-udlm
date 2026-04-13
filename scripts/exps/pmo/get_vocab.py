@@ -19,7 +19,7 @@ from collections import defaultdict
 from tqdm import trange
 import pandas as pd
 from tdc import Oracle
-from genmol.utils.utils_chem import cut
+from safe_udlm.utils.utils_chem import cut
 from rdkit import Chem, RDLogger
 RDLogger.DisableLog('rdApp.*')
 

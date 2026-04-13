@@ -21,8 +21,8 @@ import hydra
 import lightning as L
 import omegaconf
 import torch
-from genmol.model import SafeUDLM
-from genmol.utils.utils_data import get_dataloader, get_last_checkpoint
+from safe_udlm.model import SafeUDLM
+from safe_udlm.utils.utils_data import get_dataloader, get_last_checkpoint
 
 omegaconf.OmegaConf.register_new_resolver('cwd', os.getcwd)
 omegaconf.OmegaConf.register_new_resolver('device_count', torch.cuda.device_count)
@@ -41,8 +41,9 @@ def train(config):
             config=omegaconf.OmegaConf.to_object(config),
             **config.wandb)
     
-    if config.training.get('use_bracket_safe'):
-        config.model.vocab_size += 2
+    # get_tokenizer() unconditionally adds ['<', '>'] tokens, so vocab is always +2
+    # regardless of whether use_bracket_safe encoding is active.
+    config.model.vocab_size += 2
 
     model = SafeUDLM(config)
     ckpt_path = get_last_checkpoint(config.callback.dirpath)
