@@ -72,7 +72,7 @@ class SafeUDLM(L.LightningModule):
         noise_eps = self.config.noise.get('eps', self.config.training.sampling_eps)
         noise_schedule = LogLinearNoiseSchedule(eps=noise_eps)
         self.diffusion = UniformDiscreteDiffusion(
-            vocab_size=self.tokenizer.vocab_size,
+            vocab_size=self.config.model.vocab_size,
             mask_index=self.mask_index,
             pad_index=self.pad_index,
             bos_index=self.bos_index,
