@@ -90,6 +90,15 @@ training:
   use_bracket_safe: False
   warmup_steps: 4000
 
+eval_callback:
+  eval_every_n_steps: 10000   # run de-novo eval every N training steps
+  num_samples: 256             # molecules to attempt per eval
+  softmax_temp: 0.8            # de-novo recommended value (HYPERPARAMETERS.md)
+  randomness: 1.0
+  min_add_len: 50
+  qed_threshold: 0.6           # quality = QED >= threshold AND SA <= threshold
+  sa_threshold: 4.0
+
 callback:
   _target_: lightning.pytorch.callbacks.ModelCheckpoint
   dirpath: ${cwd:}/checkpoints

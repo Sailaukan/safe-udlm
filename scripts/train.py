@@ -23,6 +23,7 @@ import omegaconf
 import torch
 from safe_udlm.model import SafeUDLM
 from safe_udlm.utils.utils_data import get_dataloader, get_last_checkpoint
+from safe_udlm.eval_callback import DeNovoEvalCallback
 
 omegaconf.OmegaConf.register_new_resolver('cwd', os.getcwd)
 omegaconf.OmegaConf.register_new_resolver('device_count', torch.cuda.device_count)
@@ -49,10 +50,21 @@ def train(config):
     ckpt_path = get_last_checkpoint(config.callback.dirpath)
     
     train_dataloader = get_dataloader(config)
+    eval_cfg = config.get('eval_callback', {})
+    eval_callback = DeNovoEvalCallback(
+        eval_every_n_steps=eval_cfg.get('eval_every_n_steps', 10_000),
+        num_samples=eval_cfg.get('num_samples', 256),
+        softmax_temp=eval_cfg.get('softmax_temp', 0.8),
+        randomness=eval_cfg.get('randomness', 1.0),
+        min_add_len=eval_cfg.get('min_add_len', 50),
+        qed_threshold=eval_cfg.get('qed_threshold', 0.6),
+        sa_threshold=eval_cfg.get('sa_threshold', 4.0),
+    )
+
     trainer = hydra.utils.instantiate(
         config.trainer,
         default_root_dir=os.getcwd(),
-        callbacks=[hydra.utils.instantiate(config.callback)],
+        callbacks=[hydra.utils.instantiate(config.callback), eval_callback],
         strategy=hydra.utils.instantiate({'_target_': 'lightning.pytorch.strategies.DDPStrategy',
                                           'find_unused_parameters': False}),
         logger=wandb_logger,
